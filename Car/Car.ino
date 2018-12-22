@@ -32,7 +32,6 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-<<<<<<< HEAD
   if(digitalRead(STOP) == HIGH)
     StopMotor();
   else if(digitalRead(STOP) == LOW)
@@ -43,10 +42,7 @@ void loop() {
   else if(digitalRead(START) == LOW)
     StartFall();
   
-  if(stopFlag && startFlag){
-=======
   if(stopFlag == true && startFlag == true){
->>>>>>> f76fe8005f498997b4bb3181823909fe8d9bc60b
     digitalWrite(LED_R, HIGH);
     digitalWrite(LED_G, LOW);
     digitalWrite(LED_B, HIGH);
