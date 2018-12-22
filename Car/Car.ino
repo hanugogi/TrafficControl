@@ -33,7 +33,7 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if(stopFlag && startFlag){
+  if(stopFlag == true && startFlag == true){
     digitalWrite(LED_R, HIGH);
     digitalWrite(LED_G, LOW);
     digitalWrite(LED_B, HIGH);
