@@ -21,14 +21,14 @@ void setup() {
   pinMode(LED_G, OUTPUT);
   pinMode(LED_B, OUTPUT);
   
-  pinMode(STOP, INPUT);
-  pinMode(START, INPUT);
+  pinMode(STOP, INPUT_PULLUP);
+  pinMode(START, INPUT_PULLUP);
   
-  attachInterrupt(digitalPinToInterrupt(STOP), StopMotor, RISING);
-  attachInterrupt(digitalPinToInterrupt(START), StartMotor, RISING);
+  attachInterrupt(digitalPinToInterrupt(STOP), StopMotor, FALLING);
+  attachInterrupt(digitalPinToInterrupt(START), StartMotor, FALLING);
   
-  attachInterrupt(digitalPinToInterrupt(STOP), StopFall, FALLING);
-  attachInterrupt(digitalPinToInterrupt(START), StartFall, FALLING);
+  attachInterrupt(digitalPinToInterrupt(STOP), StopFall, RISING);
+  attachInterrupt(digitalPinToInterrupt(START), StartFall, RISING);
 }
 
 void loop() {
