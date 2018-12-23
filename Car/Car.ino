@@ -15,32 +15,41 @@ void StartMotor(void);
 bool stopFlag = false, startFlag = false;
 
 void setup() {
+  Serial.begin(9600);
+  
   // put your setup code here, to run once:
   pinMode(MOTOR, OUTPUT);
   pinMode(LED_R, OUTPUT);
   pinMode(LED_G, OUTPUT);
   pinMode(LED_B, OUTPUT);
   
-  pinMode(STOP, INPUT_PULLUP);
-  pinMode(START, INPUT_PULLUP);
-  
-  attachInterrupt(digitalPinToInterrupt(STOP), StopMotor, FALLING);
-  attachInterrupt(digitalPinToInterrupt(START), StartMotor, FALLING);
-  
-  attachInterrupt(digitalPinToInterrupt(STOP), StopFall, RISING);
-  attachInterrupt(digitalPinToInterrupt(START), StartFall, RISING);
+  pinMode(STOP, INPUT);
+  pinMode(START, INPUT);
+   
+  stopFlag = false;
+  startFlag = false;
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if(stopFlag && startFlag){
+  if(digitalRead(STOP) == HIGH)
+    StopMotor();
+  else if(digitalRead(STOP) == LOW)
+    StopFall();
+
+  if(digitalRead(START) == HIGH)
+    StartMotor();
+  else if(digitalRead(START) == LOW)
+    StartFall();
+  
+  if(stopFlag == true && startFlag == true){
     digitalWrite(LED_R, HIGH);
     digitalWrite(LED_G, LOW);
     digitalWrite(LED_B, HIGH);
 
     digitalWrite(MOTOR, LOW);
   }
-  delay(1);
+  delay(5);
 }
 
 void StopFall(void){
@@ -70,3 +79,4 @@ void StartMotor(void){
   
   digitalWrite(MOTOR, HIGH);
 }
+
