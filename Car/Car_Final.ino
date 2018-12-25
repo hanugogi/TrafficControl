@@ -1,18 +1,16 @@
-#define STOP 2
-#define START 3
+#define SIG1 2
+#define SIG2 3
 
-#define MOTOR 4
+#define MOTOR A5
 
-#define LED_R 5
-#define LED_G 6
-#define LED_B 7
+#define LED_R 4
+#define LED_G 5
+#define LED_B 6
 
-void StopFall(void);
-void StartFall(void);
 void StopMotor(void);
-void StartMotor(void);
-
-bool stopFlag = false, startFlag = false;
+void StartMotor1(void);
+void StartMotor2(void);
+void Fix(void);
 
 void setup() {
   Serial.begin(9600);
@@ -23,60 +21,75 @@ void setup() {
   pinMode(LED_G, OUTPUT);
   pinMode(LED_B, OUTPUT);
   
-  pinMode(STOP, INPUT);
-  pinMode(START, INPUT);
-   
-  stopFlag = false;
-  startFlag = false;
+  pinMode(SIG1, INPUT);
+  pinMode(SIG2, INPUT);
+  
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if(digitalRead(STOP) == HIGH)
-    StopMotor();
-  else if(digitalRead(STOP) == LOW)
-    StopFall();
 
-  if(digitalRead(START) == HIGH)
-    StartMotor();
-  else if(digitalRead(START) == LOW)
-    StartFall();
-  
-  if(stopFlag == true && startFlag == true){
-    digitalWrite(LED_R, HIGH);
-    digitalWrite(LED_G, LOW);
-    digitalWrite(LED_B, HIGH);
+  if(digitalRead(SIG1) == LOW)
+  {
+    if(digitalRead(SIG2) == LOW)
+      StopMotor();
+  }
 
-    digitalWrite(MOTOR, LOW);
+  if(digitalRead(SIG1) == LOW)
+  {
+    if(digitalRead(SIG2) == HIGH)
+      StartMotor1();
+  }
+
+  if(digitalRead(SIG1) == HIGH)
+  {
+    if(digitalRead(SIG2) == LOW)
+      StartMotor2();
+  }
+
+  if(digitalRead(SIG1) == HIGH)
+  {
+    if(digitalRead(SIG2) == HIGH)
+      Fix();  
   }
   delay(5);
 }
 
-void StopFall(void){
-  stopFlag = false;
-}
-
-void StartFall(void){
-  startFlag = false;
-}
-
-void StopMotor(void){
-  stopFlag = true;
-  
+void StopMotor(void)
+{
   digitalWrite(LED_R, HIGH);
   digitalWrite(LED_G, LOW);
   digitalWrite(LED_B, LOW);
   
-  digitalWrite(MOTOR, LOW);
+  analogWrite(MOTOR, 0);
 }
 
-void StartMotor(void){
-  startFlag = true;
-  
+void StartMotor1(void)
+{ 
   digitalWrite(LED_R, LOW);
   digitalWrite(LED_G, HIGH);
   digitalWrite(LED_B, LOW);
+
+  analogWrite(MOTOR, 255);
+  delay(20);
+  analogWrite(MOTOR, 0);
+}
+
+void StartMotor2(void)
+{ 
+  digitalWrite(LED_R, LOW);
+  digitalWrite(LED_G, LOW);
+  digitalWrite(LED_B, HIGH);
   
-  digitalWrite(MOTOR, HIGH);
+  analogWrite(MOTOR, 255);
+}
+
+void Fix(void)
+{
+  digitalWrite(LED_R, HIGH);
+  digitalWrite(LED_G, LOW);
+  digitalWrite(LED_B, HIGH);
+  
+  analogWrite(MOTOR, 0);
 }
 
