@@ -62,7 +62,7 @@ bool flag_pedestrian = false;
 bool flag_stop = false;
 
 static double speed;	//cm/s
-
+volatile int count_PIR = 0;
 //-----------------------------------------------
 
 int main(void){
@@ -84,8 +84,17 @@ start:
 	printf("\n:");
 	sync();
 
-	temp = getchar();
-	(temp == '2') ? printf("GEAR2\n", SendData(GEAR2)) : printf("GEAR1\n", SendData(GEAR1));
+	while(1){
+		temp = getchar();
+		if(temp == '2'){
+			SendData(GEAR2);
+			break;
+		}
+		else if(temp == '1'){
+			SendData(GEAR1);
+			break;
+		}
+	}
 
 	while(1){
 		if(flag_stop){
@@ -161,37 +170,41 @@ void ISR_IR2(void){
 	if(!flag_speed){
 		flag_speed = true;
 		printf("Second IR");
-		sync()
 	}
 }
 
 //-----------------------------------------------
 
 void ISR_IRStop(void){
-	SendData(STOP);
-	printf("Stop IR Checked\n");
-	flag_stop = true;
+	if(!flag_stop){
+		SendData(STOP);
+		printf("Stop IR Checked\n");
+		flag_stop = true;
+	}
 }
 
 //-----------------------------------------------
 
 void ISR_PIR(void){
+	if((++count_PIR) % 2 == 0) return;
+
 	printf("Pedestrian IR Checked\n");
 	double braking, max, count;
 
 	if(!flag_pedestrian){
 		flag_pedestrian = true;
 
-		for(int i = 0; i < 4700; i++){
+		for(int i = 0; i < 5000; i++){
 			delay(1);
 			if(flag_done) break;
 		}
 		if(flag_done){
+			printf("flag_done is True\n");
 			braking = (speed / 254) * speed;	//Get Braking Distance
 			max = 51 - braking;					
 
-			count = ((max / speed) * 1000) - 500;
-			delay(count);
+			count = ((max / speed) * 1000);
+			delay(count - 750);
 		}
 		TrafficLights(ORANGE);
 		delay(1000);
@@ -201,13 +214,13 @@ void ISR_PIR(void){
 		delay(10000);						//Delay 10second
 
 		TrafficLights(GREEN);
-
-		printf(":");
-		getchar();
+		SendData(GEAR2);
 
 		flag_speed = false;
 		flag_car = false;
 		flag_pedestrian = false;
+		if(!flag_done) ISR_IRStop();
+		flag_done = false;
 	}
 	else
 		printf("More Pedestrian\n");
@@ -271,18 +284,22 @@ int SendData(char command){
 		case GEAR1:
 			digitalWrite(DATA1, HIGH);
 			digitalWrite(DATA2, LOW);
+			printf("GEAR1\n");
 			break;
 		case GEAR2:
 			digitalWrite(DATA1, LOW);
 			digitalWrite(DATA2, HIGH);
+			printf("GEAR2\n");
 			break;
 		case TEST:
 			digitalWrite(DATA1, HIGH);
 			digitalWrite(DATA2, HIGH);
+			printf("TEST\n");
 			break;
 		case STOP:
-			digitalWrite(DATA1, LOW);
-			digitalWrite(DATA2, LOW);
+			digitalWrite(DATA1, HIGH);
+			digitalWrite(DATA2, HIGH);
+			printf("STOP\n");
 			break;
 		default:
 			printf("OMG! SendData Default\n");
