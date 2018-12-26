@@ -1,21 +1,22 @@
 #include<stdio.h>
 #include<errno.h>
 #include<string.h>
+#include<unistd.h>
 #include<stdbool.h>
 #include<wiringPi.h>
 
 //-----------------------------------------------
 
-#define RED 100
+#define RED 102
 #define ORANGE 101
-#define GREEN 102
+#define GREEN 100
 
 #define TL_L1 11	//Traffic Light Left
 #define TL_L2 10
 #define TL_R1 21	//Traffic Light Right
 #define TL_R2 22
 
-#define PTL_L_F 25	//Pedestrian Traffic Light Left Front
+#define PTL_L_F 7	//Pedestrian Traffic Light Left Front
 #define PTL_L_B 27	//Pedestrian Traffic LIght Left Backward
 #define PTL_R_F 8	//Pedestrian Traffic Light Right Front
 #define PTL_R_B	9	//Pedestrian Traffic Light Right Backward
@@ -31,8 +32,8 @@
 #define PIR_L 15	//Left IRSensor For Pedestrian
 #define PIR_R 14	//Right IRSensor For Pedestrian
 
-#define DATA1 24	//Communication Data Pin 1
-#define DATA2 25	//Communication Data Pin 2
+#define DATA1 23	//Communication Data Pin 1
+#define DATA2 24	//Communication Data Pin 2
 
 #define GEAR1	1
 #define GEAR2	2
@@ -56,10 +57,12 @@ int SendData(char command);
 
 bool flag_speed = false;
 bool flag_car = false;
+bool flag_done = false;
 bool flag_pedestrian = false;
+bool flag_stop = false;
 
 static double speed;	//cm/s
-
+volatile int count_PIR = 0;
 //-----------------------------------------------
 
 int main(void){
@@ -70,17 +73,35 @@ int main(void){
 		return 1;
 	}
 	
-	printf("Waiting...");
-	temp = getchar();
-	
 	Pin_Init();
 	ISR_Init();
 
 	TrafficLights(GREEN);
+	SendData(STOP);
 
-	(temp == '2') ? printf("GEAR2\n", SendData(GEAR2)) : printf("GEAR1\n", SendData(GEAR1));
+start:
+	printf("Waiting...");
+	printf("\n:");
+	sync();
 
-	while(1){};
+	while(1){
+		temp = getchar();
+		if(temp == '2'){
+			SendData(GEAR2);
+			break;
+		}
+		else if(temp == '1'){
+			SendData(GEAR1);
+			break;
+		}
+	}
+
+	while(1){
+		if(flag_stop){
+			flag_stop = false;
+			goto start;
+		}
+	};
 }
 
 //-----------------------------------------------
@@ -116,59 +137,75 @@ void ISR_Init(void){
 //-----------------------------------------------
 
 void ISR_IR1(void){
-	flag_car = true;
-	printf("First IR Checked\n");
+	if(!flag_car && flag_pedestrian){
+		flag_car = true;
+		flag_done = false;
+		printf("First IR Checked\n");
 
-	int before, after, time;
-	
-	before = millis();
-	
-	while(!flag_speed){};
-	printf(" Checked\n");
+		int before, after, time;
+		
+		before = millis();
 
-	after = millis();
-	time = after - before;
+		flag_speed = false;
+		while(!flag_speed){};
+		printf(" Checked\n");
 
-	speed = 85/time;						//85mm / miliesecond
-	speed *= 100;							//division 10 multiply 1000
+		after = millis();
+		time = after - before;
 
-	printf("Speed: %lf\ncm/s", speed);
-	flag_speed = false;
+		//printf("before: %d\nafter: %d\nafter - before: %d\n", before, after, time);
+
+		speed = 8500.0/time;					//85mm / miliesecond
+												//division 10 multiply 1000
+
+		printf("Speed: %lfcm/s\n\n", speed);
+		sync();
+		flag_done = true;
+	}
 }
 
 //-----------------------------------------------
 
 void ISR_IR2(void){
-	flag_speed = true;
-	printf("Second IR");
+	if(!flag_speed){
+		flag_speed = true;
+		printf("Second IR");
+	}
 }
 
 //-----------------------------------------------
 
 void ISR_IRStop(void){
-	SendData(STOP);
-	printf("Stop IR Checked\n");
+	if(!flag_stop){
+		SendData(STOP);
+		printf("Stop IR Checked\n");
+		flag_stop = true;
+	}
 }
 
 //-----------------------------------------------
 
 void ISR_PIR(void){
+	if((++count_PIR) % 2 == 0) return;
+
 	printf("Pedestrian IR Checked\n");
 	double braking, max, count;
 
 	if(!flag_pedestrian){
-		for(int i = 0; i < 4700; i++){
+		flag_pedestrian = true;
+
+		for(int i = 0; i < 5000; i++){
 			delay(1);
-			if(flag_car) break;
+			if(flag_done) break;
 		}
-		flag_car = false;
+		if(flag_done){
+			printf("flag_done is True\n");
+			braking = (speed / 254) * speed;	//Get Braking Distance
+			max = 51 - braking;					
 
-		braking = (speed / 254) * speed;	//Get Braking Distance
-		max = 51 - braking;					
-
-		count = max / speed * 1000;
-		delay(count);
-
+			count = ((max / speed) * 1000);
+			delay(count - 750);
+		}
 		TrafficLights(ORANGE);
 		delay(1000);
 
@@ -178,6 +215,12 @@ void ISR_PIR(void){
 
 		TrafficLights(GREEN);
 		SendData(GEAR2);
+
+		flag_speed = false;
+		flag_car = false;
+		flag_pedestrian = false;
+		if(!flag_done) ISR_IRStop();
+		flag_done = false;
 	}
 	else
 		printf("More Pedestrian\n");
@@ -188,7 +231,7 @@ void ISR_PIR(void){
 
 void TrafficLights(char mode){
 	switch(mode){
-		case RED:
+		case GREEN:
 			digitalWrite(TL_L1, HIGH);
 			digitalWrite(TL_L2, LOW);
 			
@@ -215,7 +258,7 @@ void TrafficLights(char mode){
 			digitalWrite(PTL_R_B, LOW);
 			printf("ORANGE ON\n");
 			break;
-		case GREEN:
+		case RED:
 			digitalWrite(TL_L1, LOW);
 			digitalWrite(TL_L2, HIGH);
 			
@@ -241,18 +284,22 @@ int SendData(char command){
 		case GEAR1:
 			digitalWrite(DATA1, HIGH);
 			digitalWrite(DATA2, LOW);
+			printf("GEAR1\n");
 			break;
 		case GEAR2:
 			digitalWrite(DATA1, LOW);
 			digitalWrite(DATA2, HIGH);
+			printf("GEAR2\n");
 			break;
 		case TEST:
 			digitalWrite(DATA1, HIGH);
 			digitalWrite(DATA2, HIGH);
+			printf("TEST\n");
 			break;
 		case STOP:
-			digitalWrite(DATA1, LOW);
-			digitalWrite(DATA2, LOW);
+			digitalWrite(DATA1, HIGH);
+			digitalWrite(DATA2, HIGH);
+			printf("STOP\n");
 			break;
 		default:
 			printf("OMG! SendData Default\n");
